@@ -2,11 +2,11 @@ FROM nousresearch/hermes-agent:v2026.8.3@sha256:16788311e2fa3035456bdc1bafb8ec2b
 
 # Install the Hermes Python SDK dependency into Hermes' own virtualenv.
 # The base image intentionally has no system pip; uv is bundled by Hermes.
-RUN uv pip install --python /opt/hermes/.venv/bin/python supermemory \
-    && SUPERMEMORY_NO_START=1 SUPERMEMORY_NO_PROMPT=1 \
-       curl -fsSL https://supermemory.ai/install | bash -s -- 0.0.8
+# The 282 MB Supermemory server binary is installed at runtime into the
+# persistent /data volume, so Railway image builds stay fast and reliable.
+RUN uv pip install --python /opt/hermes/.venv/bin/python supermemory
 
-ENV PATH="/root/.local/bin:/root/.supermemory/bin:${PATH}"
+ENV PATH="/data/.supermemory-bin:/root/.local/bin:/root/.supermemory/bin:${PATH}"
 
 COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/hermes-railway-entrypoint
 

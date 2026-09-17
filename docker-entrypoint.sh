@@ -24,10 +24,22 @@ export HERMES_DASHBOARD_BASIC_AUTH_SECRET="$dashboard_secret"
 
 # Supermemory is embedded in the same Hermes container.
 export SUPERMEMORY_DATA_DIR="${SUPERMEMORY_DATA_DIR:-/data/.supermemory}"
+export SUPERMEMORY_INSTALL_DIR="${SUPERMEMORY_INSTALL_DIR:-/data/.supermemory-runtime}"
+export SUPERMEMORY_BIN_DIR="${SUPERMEMORY_BIN_DIR:-/data/.supermemory-bin}"
 export SUPERMEMORY_PORT="${SUPERMEMORY_PORT:-6767}"
-mkdir -p "$SUPERMEMORY_DATA_DIR"
+mkdir -p "$SUPERMEMORY_DATA_DIR" "$SUPERMEMORY_INSTALL_DIR" "$SUPERMEMORY_BIN_DIR"
 
-# The installer creates the wrapper at /root/.local/bin/supermemory-server.
+# Install the native Supermemory server inside the Hermes container on the
+# first boot. The binary and its download cache live on the persistent volume.
+if [ ! -x "$SUPERMEMORY_BIN_DIR/supermemory-server" ]; then
+    echo "Installing self-hosted Supermemory server into the Hermes container..."
+    SUPERMEMORY_INSTALL_DIR="$SUPERMEMORY_INSTALL_DIR" \
+    SUPERMEMORY_BIN_DIR="$SUPERMEMORY_BIN_DIR" \
+    SUPERMEMORY_NO_START=1 \
+    SUPERMEMORY_NO_PROMPT=1 \
+    curl -fsSL https://supermemory.ai/install | bash -s -- 0.0.8
+fi
+
 # Keep the server private to the container; Hermes talks to it over loopback.
 rm -f /data/.supermemory.pid
 printf '%s\n' "Starting self-hosted Supermemory on 127.0.0.1:${SUPERMEMORY_PORT}"
@@ -38,7 +50,7 @@ OPENAI_MODEL="${SUPERMEMORY_OPENAI_MODEL:-openrouter/free}" \
 SUPERMEMORY_DATA_DIR="$SUPERMEMORY_DATA_DIR" \
 SUPERMEMORY_PORT="$SUPERMEMORY_PORT" \
 SUPERMEMORY_DISABLE_TELEMETRY="${SUPERMEMORY_DISABLE_TELEMETRY:-1}" \
-/root/.local/bin/supermemory-server >/data/supermemory.log 2>&1 &
+"$SUPERMEMORY_BIN_DIR/supermemory-server" >/data/supermemory.log 2>&1 &
 echo $! >/data/.supermemory.pid
 
 SM_READY=0
@@ -95,7 +107,7 @@ cat > "$HERMES_HOME/supermemory.json" <<JSON
 JSON
 
 # Hermes ships the Supermemory provider; no MCP adapter is needed.
-hermes config set memory.provider supermemory >/dev/null
+/opt/hermes/.venv/bin/hermes config set memory.provider supermemory >/dev/null
 
 printf '%s\n' "Supermemory ready: ${SUPERMEMORY_BASE_URL}"
 exec /opt/hermes/docker/entrypoint-dispatch.sh "$@"
