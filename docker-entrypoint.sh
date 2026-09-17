@@ -33,6 +33,7 @@ mkdir -p "$SUPERMEMORY_DATA_DIR" "$SUPERMEMORY_INSTALL_DIR" "$SUPERMEMORY_BIN_DI
 # first boot. The binary and its download cache live on the persistent volume.
 if [ ! -x "$SUPERMEMORY_BIN_DIR/supermemory-server" ]; then
     echo "Installing self-hosted Supermemory server into the Hermes container..."
+    OPENAI_API_KEY="${OPENROUTER_API_KEY:-}" \
     SUPERMEMORY_INSTALL_DIR="$SUPERMEMORY_INSTALL_DIR" \
     SUPERMEMORY_BIN_DIR="$SUPERMEMORY_BIN_DIR" \
     SUPERMEMORY_NO_START=1 \
