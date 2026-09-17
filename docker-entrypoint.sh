@@ -22,4 +22,65 @@ export HERMES_DASHBOARD_BASIC_AUTH_USERNAME="$dashboard_username"
 export HERMES_DASHBOARD_BASIC_AUTH_PASSWORD="$dashboard_password"
 export HERMES_DASHBOARD_BASIC_AUTH_SECRET="$dashboard_secret"
 
+# Start self-hosted Supermemory inside the same container as Hermes.
+export SUPERMEMORY_DATA_DIR="${SUPERMEMORY_DATA_DIR:-/data/.supermemory}"
+export SUPERMEMORY_PORT="${SUPERMEMORY_PORT:-6767}"
+mkdir -p "$SUPERMEMORY_DATA_DIR"
+
+rm -f /data/.supermemory.pid
+echo "Starting self-hosted Supermemory on 127.0.0.1:${SUPERMEMORY_PORT}"
+OPENAI_API_KEY="${OPENROUTER_API_KEY:-}" \
+OPENAI_BASE_URL="${SUPERMEMORY_OPENAI_BASE_URL:-https://openrouter.ai/api/v1}" \
+OPENAI_MODEL="${SUPERMEMORY_OPENAI_MODEL:-openrouter/free}" \
+SUPERMEMORY_DATA_DIR="$SUPERMEMORY_DATA_DIR" \
+SUPERMEMORY_PORT="$SUPERMEMORY_PORT" \
+SUPERMEMORY_DISABLE_TELEMETRY="${SUPERMEMORY_DISABLE_TELEMETRY:-1}" \
+/root/.supermemory/bin/supermemory-server >/data/supermemory.log 2>&1 &
+echo $! >/data/.supermemory.pid
+
+# The local server creates and persists its bearer token in the data directory.
+SM_READY=0
+for _ in $(seq 1 60); do
+    if [ -s "$SUPERMEMORY_DATA_DIR/api-key" ] && curl -fsS "http://127.0.0.1:${SUPERMEMORY_PORT}/health" >/dev/null 2>&1; then
+        SM_READY=1
+        break
+    fi
+    if ! kill -0 "$(cat /data/.supermemory.pid 2>/dev/null)" 2>/dev/null; then
+        echo "Supermemory failed to start:" >&2
+        cat /data/supermemory.log >&2 || true
+        exit 1
+    fi
+    sleep 1
+done
+
+if [ "$SM_READY" -ne 1 ]; then
+    echo "Supermemory did not become ready within 60s:" >&2
+    cat /data/supermemory.log >&2 || true
+    exit 1
+fi
+
+export SUPERMEMORY_BASE_URL="http://127.0.0.1:${SUPERMEMORY_PORT}"
+export SUPERMEMORY_API_KEY="$(cat "$SUPERMEMORY_DATA_DIR/api-key")"
+
+mkdir -p "$HERMES_HOME"
+if [ ! -f "$HERMES_HOME/supermemory.json" ]; then
+    cat > "$HERMES_HOME/supermemory.json" <<JSON
+{
+  "base_url": "${SUPERMEMORY_BASE_URL}",
+  "container_tag": "hermes",
+  "auto_recall": true,
+  "auto_capture": true,
+  "max_recall_results": 10,
+  "profile_frequency": 50,
+  "capture_mode": "all",
+  "search_mode": "hybrid",
+  "api_timeout": 5.0
+}
+JSON
+fi
+
+# Enable the native Hermes Supermemory provider non-interactively.
+hermes config set memory.provider supermemory >/dev/null
+
+echo "Supermemory ready: ${SUPERMEMORY_BASE_URL}"
 exec /opt/hermes/docker/entrypoint-dispatch.sh "$@"
