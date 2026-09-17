@@ -1,8 +1,10 @@
 FROM nousresearch/hermes-agent:v2026.8.3@sha256:16788311e2fa3035456bdc1bafb8ec2b1777db64ebf020af9bb7eb73c3712c9e
 
-# Self-hosted Supermemory runs in the same Hermes container.
-RUN pip install --no-cache-dir supermemory \
-    && curl -fsSL https://supermemory.ai/install | bash -s -- 0.0.8
+# Install the Hermes Python SDK dependency into Hermes' own virtualenv.
+# The base image intentionally has no system pip; uv is bundled by Hermes.
+RUN uv pip install --python /opt/hermes/.venv/bin/python supermemory \
+    && SUPERMEMORY_NO_START=1 SUPERMEMORY_NO_PROMPT=1 \
+       curl -fsSL https://supermemory.ai/install | bash -s -- 0.0.8
 
 ENV PATH="/root/.local/bin:/root/.supermemory/bin:${PATH}"
 
