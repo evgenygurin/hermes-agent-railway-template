@@ -58,3 +58,5 @@ Provider credentials, messaging channels, models, skills, profiles, and gateway 
 Update the pinned release and digest in `Dockerfile` deliberately after reviewing the upstream [release notes](https://github.com/NousResearch/hermes-agent/releases) and validating the new image. Do not use `latest`. Because the template remains GitHub-backed, merging an upgrade to the default branch notifies existing template consumers.
 
 See the official [Hermes Docker documentation](https://hermes-agent.nousresearch.com/docs/user-guide/docker) for image behavior and configuration details.
+
+# Self-hosted Supermemory is bootstrapped by docker-entrypoint.sh.
