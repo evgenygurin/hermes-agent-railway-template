@@ -51,7 +51,7 @@ OPENAI_MODEL="${SUPERMEMORY_OPENAI_MODEL:-openrouter/free}" \
 SUPERMEMORY_DATA_DIR="$SUPERMEMORY_DATA_DIR" \
 SUPERMEMORY_PORT="$SUPERMEMORY_PORT" \
 SUPERMEMORY_DISABLE_TELEMETRY="${SUPERMEMORY_DISABLE_TELEMETRY:-1}" \
-"$SUPERMEMORY_BIN_DIR/supermemory-server" >/data/supermemory.log 2>&1 &
+"$SUPERMEMORY_INSTALL_DIR/bin/supermemory-server" >/data/supermemory.log 2>&1 &
 echo $! >/data/.supermemory.pid
 
 SM_READY=0
